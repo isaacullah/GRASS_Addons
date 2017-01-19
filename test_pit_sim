@@ -1,0 +1,29 @@
+#!/usr/bin/python
+import grass.script as grass
+########################
+##  Edit these values ##
+iters = 20 	# number of times to iterate through the simulation
+bounds = 1000 # size of the sampling universe (a square)
+sampres = 10 # size of each sampling point (also a square)
+sampint = 100 # interval of the initial sampling points 
+sampdist = "dist1n_d5k" # The artifact distribution to be sampled (a map)
+prefix = "d5kn_%s" % sampint # The prefix for output maps
+########################
+########################
+#set the sample universe size and resolution
+grass.run_command("g.region", n=bounds, s=0, e=bounds, w=0, res=sampres)
+#set the sampling frame and initial sampling interval
+init_grid = "%s_init_grid" % prefix
+init_sqrs = "%s_init_sqrs" % prefix
+grass.run_command("v.mkgrid", overwrite = True, map=init_grid, box="%s,%s" % (sampint,sampint), type="point")
+grass.run_command("v.to.rast", overwrite = True, input=init_grid, type="point", output=init_sqrs, use="val")
+grass.run_command("r.null", map=init_sqrs, null=0)
+
+#initiate and start loop
+for i in range(iters):
+	if i + 1 == 1:
+		old_sqrs = init_sqrs
+	else:
+		old_sqrs = new_sqrs
+	new_sqrs = "%s_itr%s" % (prefix, str(i + 1).zfill(2))
+	grass.mapcalc("${new_sqrs}=eval(a=if(${old_sqrs} > 0 && ${sampdist} > 0, 1, 0), b=if(${old_sqrs}[1,0] == 1 || ${old_sqrs}[0,1] == 1 || ${old_sqrs}[-1,0] == 1 || ${old_sqrs}[0,-1] == 1, 1, 0), c=if(b > 0 && ${sampdist} > 0, 1, a), if(isnull(c),0,c))", overwrite = True, old_sqrs = old_sqrs, new_sqrs = new_sqrs, sampdist = sampdist)
